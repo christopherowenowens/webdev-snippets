@@ -1,0 +1,94 @@
+<!-- https://css-tricks.com/form-validation-part-1-constraint-validation-html/ --> 
+<h1>Validating Dates</h1>
+
+<pre>
+There are a few really awesome input types that not only validate dates but also provide native date pickers. Unfortunately, Chrome, Edge, and Mobile Safari are the only browsers that implement it. (I've been waiting years for Firefox to adopt this feature! Update: this feature should hopefully be coming to Firefox in the near future, too.) Other browsers just display it as a text field.
+
+As always, we can provide a pattern to catch browsers that don't support it.
+The date input type is for standard day/month/year dates.
+
+<input type="date" pattern="(?:19|20)[0-9]{2}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-9])|(?:(?!02)(?:0[1-9]|1[0-2])-(?:30))|(?:(?:0[13578]|1[02])-31))">
+In supporting browsers, the selected date is displayed like this: MM/DD/YYYY (caveat: in the US. This can vary for users in other countries or who have modified their date settings). But the value is actually in this format: YYYY-MM-DD.
+
+You should provide guidance to users of unsupported browsers about this format—something like, "Please use the YYYY-MM-DD format." However, you don't want people visiting with Chrome or Mobile Safari to see this since that's not the format they'll see, which is confusing.
+</pre>
+
+<form>
+    <div>
+        <label for="date">Date <span class="description-date">Please use the YYYY-MM-DD format.</span></label>
+        <input type="date" id="date" pattern="(?:19|20)[0-9]{2}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-9])|(?:(?!02)(?:0[1-9]|1[0-2])-(?:30))|(?:(?:0[13578]|1[02])-31))" required>
+    </div>
+
+    <input type="submit" class="button" value="Submit">
+</form>
+
+<pre>
+
+    A Simple Feature Test
+
+We can write a simple feature test to check for support, though. We'll create an input[type="date"] element, add a value that's not a valid date, and then see if the browser sanitizes it or not. You can then hide the descriptive text for browsers that support the date input type.
+
+    <label for="date">Date <span class="description-date">YYYY-MM-DDD</span></label>
+<input type="date" id="date" pattern="(?:19|20)[0-9]{2}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-9])|(?:(?!02)(?:0[1-9]|1[0-2])-(?:30))|(?:(?:0[13578]|1[02])-31))">
+
+<script>
+  var isDateSupported = function () {
+      var input = document.createElement('input');
+      var value = 'a';
+      input.setAttribute('type', 'date');
+      input.setAttribute('value', value);
+      return (input.value !== value);
+  };
+
+  if (isDateSupported()) {
+      document.documentElement.className += ' supports-date';
+  }
+</script>
+
+<style>
+  .supports-date .description-date {
+      display: none;
+  }
+</style>
+
+Other Date Types
+The time input type let's visitors select a time, while the month input type let's them choose from a month/year picker. Once again, we'll include a pattern for non-supporting browsers.
+
+<input type="time" pattern="(0[0-9]|1[0-9]|2[0-3])(:[0-5][0-9])">
+<input type="month" pattern="(?:19|20)[0-9]{2}-(?:(?:0[1-9]|1[0-2]))">
+The time input displays time in 12-hour am/pm format, but the value is 24-hour military time. The month input is displayed as May 2017 in supporting browsers, but the value is in YYYY-MM format.
+
+Just like with input[type="date"], you should provide a pattern description that's hidden in supporting browsers.
+
+</pre>
+
+<h2>Disable Native Browser Validation</h2>
+
+<form class="validate">
+    <div>
+        <label for="text">A sample field</label>
+        <input type="text" id="text" required>
+    </div>
+
+    <input type="submit" class="button" value="Submit">
+</form>
+
+<h2>Leave It Enabled</h2>
+
+<form>
+    <div>
+        <label for="text2">A sample field</label>
+        <input type="text" id="text2" required>
+    </div>
+
+    <input type="submit" class="button" value="Submit">
+</form>
+
+<script>
+    // Add the novalidate attribute when the JS loads
+var forms = document.querySelectorAll('.validate');
+for (var i = 0; i < forms.length; i++) {
+    forms[i].setAttribute('novalidate', true);
+}
+</script>
+

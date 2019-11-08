@@ -1,0 +1,19 @@
+<!-- https://css-tricks.com/form-validation-part-1-constraint-validation-html/ --> 
+<form>
+    <div>
+        <label for="number">Number</label>
+        <input type="number" id="number" pattern="[-+]?[0-9]">
+    </div>
+
+    <div>
+        <label for="numberfloat">Numbers with Decimals</label>
+        <input type="number" id="numberfloat" step="any" pattern="[-+]?[0-9]*[.,]?[0-9]+">
+    </div>
+
+    <div>
+        <label for="numberrange">Number with a Min and Max Range (3-42)</label>
+        <input type="text" id="numberrange" min="3" max="42" pattern="[3-9]|[1-3][0-9]|4[0-2]" >
+    </div>
+
+    <input type="submit" class="button" value="Submit">
+</form>

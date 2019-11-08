@@ -1,0 +1,594 @@
+https://css-tricks.com/form-validation-part-1-constraint-validation-html/
+ 
+#This seems super easy. What's the catch?
+While the Constraint Validation API is easy and light-weight, it does have some drawbacks.
+
+You can style fields that have errors on them with the :invalid pseudo-selector, but you can't style the error messages themselves.
+
+Behavior is also inconsistent across browsers. Chrome doesn't display any errors until you try to submit the form. Firefox displays a red border when the field loses focus, but only displays error messages on hover (whereas WebKit browsers keep the errors persistent).
+
+User studies from Christian Holst and Luke Wroblewski (separately) found that displaying an error when the user leaves a field, and keeping that error persistent until the issue is fixed, provided the best and fastest user experience. Bonus CSS tip: style invalid selectors only when they aren't currently being edited with :not(:focus):invalid { }.
+
+Unfortunately, none of the browsers behave exactly this way by default.
+
+
+
+PART 2: JS
+
+d you how to use native browser form validation through a combination of semantic input types (for example, <input type="email">) and validation attributes (such as required and pattern).
+
+While incredibly easy and super lightweight, this approach does have a few shortcomings.
+
+You can style fields that have errors on them with the :invalid pseudo-selector, but you can't style the error messages themselves.
+Behavior is also inconsistent across browsers.
+User studies from Christian Holst and Luke Wroblewski (separately) found that displaying an error when the user leaves a field, and keeping that error persistent until the issue is fixed, provided the best and fastest user experience.
+
+Unfortunately, none of the browsers natively behave this way. However, there is a way to get this behavior without depending on a large JavaScript form validation library.
+
+
+#The Constraint Validation API
+In addition to HTML attributes, browser-native constraint validation also provides a JavaScript API we can use to customize our form validation behavior.
+
+There are a few different methods the API exposes, but the most powerful, Validity State, allows us to use the browser's own field validation algorithms in our scripts instead of writing our own.
+
+In this article, I'm going to show you how to use Validity State to customize the behavior, appearance, and content of your form validation error messages.
+
+#Validity State
+The validity property provides a set of information about a form field, in the form of boolean (true/false) values.
+
+var myField = document.querySelector('input[type="text"]');
+var validityState = myField.validity;
+The returned object contains the following properties:
+
+valid - Is true when the field passes validation.
+valueMissing - Is true when the field is empty but required.
+typeMismatch - Is true when the field type is email or url but the entered value is not the correct type.
+tooShort - Is true when the field contains a minLength attribute and the entered value is shorter than that length.
+tooLong - Is true when the field contains a maxLength attribute and the entered value is longer than that length.
+patternMismatch - Is true when the field contains a pattern attribute and the entered value does not match the pattern.
+badInput - Is true when the input type is number and the entered value is not a number.
+stepMismatch - Is true when the field has a step attribute and the entered value does not adhere to the step values.
+rangeOverflow - Is true when the field has a max attribute and the entered number value is greater than the max.
+rangeUnderflow - Is true when the field has a min attribute and the entered number value is lower than the min.
+By using the validity property in conjunction with our input types and HTML validation attributes, we can build a robust form validation script that provides a great user experience with a relatively small amount of JavaScript.
+
+Let's get to it!
+
+#Disable native form validation
+Since we're writing our validation script, we want to disable the native browser validation by adding the novalidate attribute to our forms. We can still use the Constraint Validation API — we just want to prevent the native error messages from displaying.
+
+As a best practice, we should add this attribute with JavaScript so that if our script has an error or fails to load, the native browser form validation will still work.
+
+// Add the novalidate attribute when the JS loads
+var forms = document.querySelectorAll('form');
+for (var i = 0; i < forms.length; i++) {
+    forms[i].setAttribute('novalidate', true);
+}
+There may be some forms that you don't want to validate (for example, a search form that shows up on every page). Rather than apply our validation script to all forms, let's apply it just to forms that have the .validate class.
+
+// Add the novalidate attribute when the JS loads
+var forms = document.querySelectorAll('.validate');
+for (var i = 0; i < forms.length; i++) {
+    forms[i].setAttribute('novalidate', true);
+}
+
+Check validity when the user leaves the field
+Whenever a user leaves a field, we want to check if it's valid. To do this, we'll setup an event listener.
+
+Rather than add a listener to every form field, we'll use a technique called event bubbling (or event propagation) to listen for all blur events.
+
+// Listen to all blur events
+document.addEventListener('blur', function (event) {
+    // Do something on blur...
+}, true);
+You'll note that the last argument in addEventListener is set to true. This argument is called useCapture, and it's normally set to false. The blur event doesn't bubble the way events like click do. Setting this argument to true allows us to capture all blur events rather than only those that happen directly on the element we're listening to.
+
+Next, we want to make sure that the blurred element was a field in a form with the .validate class. We can get the blurred element using event.target, and get it's parent form by calling event.target.form. Then we'll use classList to check if the form has the validation class or not.
+
+If it does, we can check the field validity.
+
+// Listen to all blur events
+document.addEventListener('blur', function (event) {
+
+    // Only run if the field is in a form to be validated
+    if (!event.target.form.classList.contains('validate')) return;
+
+    // Validate the field
+    var error = event.target.validity;
+    console.log(error);
+
+}, true);
+If error is true, the field is valid. Otherwise, there's an error.
+
+
+#Getting the error
+Once we know there's an error, it's helpful to know what the error actually is. We can use the other Validity State properties to get that information.
+
+Since we need to check each property, the code for this can get a bit long. Let's setup a separate function for this and pass our field into it.
+
+// Validate the field
+var hasError = function (field) {
+    // Get the error
+};
+
+// Listen to all blur events
+document.addEventListner('blur', function (event) {
+
+    // Only run if the field is in a form to be validated
+    if (!event.target.form.classList.contains('validate')) return;
+
+    // Validate the field
+    var error = hasError(event.target);
+
+}, true);
+There are a few field types we want to ignore: fields that are disabled, file and reset inputs, and submit inputs and buttons. If a field isn't one of those, let's get it's validity.
+
+// Validate the field
+var hasError = function (field) {
+
+    // Don't validate submits, buttons, file and reset inputs, and disabled fields
+    if (field.disabled || field.type === 'file' || field.type === 'reset' || field.type === 'submit' || field.type === 'button') return;
+
+    // Get validity
+    var validity = field.validity;
+
+};
+If there's no error, we'll return null. Otherwise, we'll check each of the Validity State properties until we find the error.
+
+When we find the match, we'll return a string with the error. If none of the properties are true but validity is false, we'll return a generic "catchall" error message (I can't imagine a scenario where this happens, but it's good to plan for the unexpected).
+
+// Validate the field
+var hasError = function (field) {
+
+    // Don't validate submits, buttons, file and reset inputs, and disabled fields
+    if (field.disabled || field.type === 'file' || field.type === 'reset' || field.type === 'submit' || field.type === 'button') return;
+
+    // Get validity
+    var validity = field.validity;
+
+    // If valid, return null
+    if (validity.valid) return;
+
+    // If field is required and empty
+    if (validity.valueMissing) return 'Please fill out this field.';
+
+    // If not the right type
+    if (validity.typeMismatch) return 'Please use the correct input type.';
+
+    // If too short
+    if (validity.tooShort) return 'Please lengthen this text.';
+
+    // If too long
+    if (validity.tooLong) return 'Please shorten this text.';
+
+    // If number input isn't a number
+    if (validity.badInput) return 'Please enter a number.';
+
+    // If a number value doesn't match the step interval
+    if (validity.stepMismatch) return 'Please select a valid value.';
+
+    // If a number field is over the max
+    if (validity.rangeOverflow) return 'Please select a smaller value.';
+
+    // If a number field is below the min
+    if (validity.rangeUnderflow) return 'Please select a larger value.';
+
+    // If pattern doesn't match
+    if (validity.patternMismatch) return 'Please match the requested format.';
+
+    // If all else fails, return a generic catchall error
+    return 'The value you entered for this field is invalid.';
+
+};
+This is a good start, but we can do some additional parsing to make a few of our errors more useful. For typeMismatch, we can check if it's supposed to be an email or url and customize the error accordingly.
+
+// If not the right type
+if (validity.typeMismatch) {
+
+    // Email
+    if (field.type === 'email') return 'Please enter an email address.';
+
+    // URL
+    if (field.type === 'url') return 'Please enter a URL.';
+
+}
+If the field value is too long or too short, we can find out both how long or short it's supposed to be and how long or short it actually is. We can then include that information in the error.
+
+// If too short
+if (validity.tooShort) return 'Please lengthen this text to ' + field.getAttribute('minLength') + ' characters or more. You are currently using ' + field.value.length + ' characters.';
+
+// If too long
+if (validity.tooLong) return 'Please short this text to no more than ' + field.getAttribute('maxLength') + ' characters. You are currently using ' + field.value.length + ' characters.';
+If a number field is over or below the allowed range, we can include that minimum or maximum allowed value in our error.
+
+// If a number field is over the max
+if (validity.rangeOverflow) return 'Please select a value that is no more than ' + field.getAttribute('max') + '.';
+
+// If a number field is below the min
+if (validity.rangeUnderflow) return 'Please select a value that is no less than ' + field.getAttribute('min') + '.';
+And if there is a pattern mismatch and the field has a title, we can use that as our error, just like the native browser behavior.
+
+// If pattern doesn't match
+if (validity.patternMismatch) {
+
+    // If pattern info is included, return custom error
+    if (field.hasAttribute('title')) return field.getAttribute('title');
+
+    // Otherwise, generic error
+    return 'Please match the requested format.';
+
+}
+Here's the complete code for our hasError() function.
+
+// Validate the field
+var hasError = function (field) {
+
+    // Don't validate submits, buttons, file and reset inputs, and disabled fields
+    if (field.disabled || field.type === 'file' || field.type === 'reset' || field.type === 'submit' || field.type === 'button') return;
+
+    // Get validity
+    var validity = field.validity;
+
+    // If valid, return null
+    if (validity.valid) return;
+
+    // If field is required and empty
+    if (validity.valueMissing) return 'Please fill out this field.';
+
+    // If not the right type
+    if (validity.typeMismatch) {
+
+        // Email
+        if (field.type === 'email') return 'Please enter an email address.';
+
+        // URL
+        if (field.type === 'url') return 'Please enter a URL.';
+
+    }
+
+    // If too short
+    if (validity.tooShort) return 'Please lengthen this text to ' + field.getAttribute('minLength') + ' characters or more. You are currently using ' + field.value.length + ' characters.';
+
+    // If too long
+    if (validity.tooLong) return 'Please shorten this text to no more than ' + field.getAttribute('maxLength') + ' characters. You are currently using ' + field.value.length + ' characters.';
+
+    // If number input isn't a number
+    if (validity.badInput) return 'Please enter a number.';
+
+    // If a number value doesn't match the step interval
+    if (validity.stepMismatch) return 'Please select a valid value.';
+
+    // If a number field is over the max
+    if (validity.rangeOverflow) return 'Please select a value that is no more than ' + field.getAttribute('max') + '.';
+
+    // If a number field is below the min
+    if (validity.rangeUnderflow) return 'Please select a value that is no less than ' + field.getAttribute('min') + '.';
+
+    // If pattern doesn't match
+    if (validity.patternMismatch) {
+
+        // If pattern info is included, return custom error
+        if (field.hasAttribute('title')) return field.getAttribute('title');
+
+        // Otherwise, generic error
+        return 'Please match the requested format.';
+
+    }
+
+    // If all else fails, return a generic catchall error
+    return 'The value you entered for this field is invalid.';
+
+};
+Try it yourself in the pen below.
+
+
+#Show an error message
+Once we get our error, we can display it below the field. We'll create a showError() function to handle this, and pass in our field and the error. Then, we'll call it in our event listener.
+
+// Show the error message
+var showError = function (field, error) {
+    // Show the error message...
+};
+
+// Listen to all blur events
+document.addEventListener('blur', function (event) {
+
+    // Only run if the field is in a form to be validated
+    if (!event.target.form.classList.contains('validate')) return;
+
+    // Validate the field
+    var error = hasError(event.target);
+
+    // If there's an error, show it
+    if (error) {
+        showError(event.target, error);
+    }
+
+}, true);
+In our showError function, we're going to do a few things:
+
+We'll add a class to the field with the error so that we can style it.
+If an error message already exists, we'll update it with new text.
+Otherwise, we'll create a message and inject it into the DOM immediately after the field.
+We'll also use the field ID to create a unique ID for the message so we can find it again later (falling back to the field name in case there's no ID).
+
+var showError = function (field, error) {
+
+    // Add error class to field
+    field.classList.add('error');
+
+    // Get field id or name
+    var id = field.id || field.name;
+    if (!id) return;
+
+    // Check if error message field already exists
+    // If not, create one
+    var message = field.form.querySelector('.error-message#error-for-' + id );
+    if (!message) {
+        message = document.createElement('div');
+        message.className = 'error-message';
+        message.id = 'error-for-' + id;
+        field.parentNode.insertBefore( message, field.nextSibling );
+    }
+
+    // Update error message
+    message.innerHTML = error;
+
+    // Show error message
+    message.style.display = 'block';
+    message.style.visibility = 'visible';
+
+};
+To make sure that screen readers and other assistive technology know that our error message is associated with our field, we also need to add the aria-describedby role.
+
+var showError = function (field, error) {
+
+    // Add error class to field
+    field.classList.add('error');
+
+    // Get field id or name
+    var id = field.id || field.name;
+    if (!id) return;
+
+    // Check if error message field already exists
+    // If not, create one
+    var message = field.form.querySelector('.error-message#error-for-' + id );
+    if (!message) {
+        message = document.createElement('div');
+        message.className = 'error-message';
+        message.id = 'error-for-' + id;
+        field.parentNode.insertBefore( message, field.nextSibling );
+    }
+
+    // Add ARIA role to the field
+    field.setAttribute('aria-describedby', 'error-for-' + id);
+
+    // Update error message
+    message.innerHTML = error;
+
+    // Show error message
+    message.style.display = 'block';
+    message.style.visibility = 'visible';
+
+};
+#Style the error message
+We can use the .error and .error-message classes to style our form field and error message.
+
+As a simple example, you may want to display a red border around fields with an error, and make the error message red and italicized.
+
+.error {
+  border-color: red;
+}
+
+.error-message {
+  color: red;
+  font-style: italic;
+}
+
+#Hide an error message
+Once we show an error, your visitor will (hopefully) fix it. Once the field validates, we need to remove the error message. Let's create another function, removeError(), and pass in the field. We'll call this function from event listener as well.
+
+// Remove the error message
+var removeError = function (field) {
+    // Remove the error message...
+};
+
+// Listen to all blur events
+document.addEventListener('blur', function (event) {
+
+    // Only run if the field is in a form to be validated
+    if (!event.target.form.classList.contains('validate')) return;
+
+    // Validate the field
+    var error = event.target.validity;
+
+    // If there's an error, show it
+    if (error) {
+        showError(event.target, error);
+        return;
+    }
+
+    // Otherwise, remove any existing error message
+    removeError(event.target);
+
+}, true);
+In removeError(), we want to:
+
+Remove the error class from our field.
+Remove the aria-describedby role from the field.
+Hide any visible error messages in the DOM.
+Because we could have multiple forms on a page, and there's a chance those forms might have fields with the same name or ID (even though that's invalid, it happens), we're going to limit our search for the error message with querySelector the form our field is in rather than the entire document.
+
+// Remove the error message
+var removeError = function (field) {
+
+    // Remove error class to field
+    field.classList.remove('error');
+
+    // Remove ARIA role from the field
+    field.removeAttribute('aria-describedby');
+
+    // Get field id or name
+    var id = field.id || field.name;
+    if (!id) return;
+
+    // Check if an error message is in the DOM
+    var message = field.form.querySelector('.error-message#error-for-' + id + '');
+    if (!message) return;
+
+    // If so, hide it
+    message.innerHTML = '';
+    message.style.display = 'none';
+    message.style.visibility = 'hidden';
+
+};
+
+If the field is a radio button or checkbox, we need to change how we add our error message to the DOM.
+
+The field label often comes after the field, or wraps it entirely, for these types of inputs. Additionally, if the radio button is part of a group, we want the error to appear after the group rather than just the radio button.
+
+
+First, we need to modify our showError() method. If the field type is radio and it has a name, we want get all radio buttons with that same name (ie. all other radio buttons in the group) and reset our field variable to the last one in the group.
+
+// Show the error message
+var showError = function (field, error) {
+
+    // Add error class to field
+    field.classList.add('error');
+
+    // If the field is a radio button and part of a group, error all and get the last item in the group
+    if (field.type === 'radio' && field.name) {
+        var group = document.getElementsByName(field.name);
+        if (group.length > 0) {
+            for (var i = 0; i < group.length; i++) {
+                // Only check fields in current form
+                if (group[i].form !== field.form) continue;
+                group[i].classList.add('error');
+            }
+            field = group[group.length - 1];
+        }
+    }
+
+    ...
+
+};
+When we go to inject our message into the DOM, we first want to check if the field type is radio or checkbox. If so, we want to get the field label and inject our message after it instead of after the field itself.
+
+// Show the error message
+var showError = function (field, error) {
+
+    ...
+
+    // Check if error message field already exists
+    // If not, create one
+    var message = field.form.querySelector('.error-message#error-for-' + id );
+    if (!message) {
+        message = document.createElement('div');
+        message.className = 'error-message';
+        message.id = 'error-for-' + id;
+
+        // If the field is a radio button or checkbox, insert error after the label
+        var label;
+        if (field.type === 'radio' || field.type ==='checkbox') {
+            label = field.form.querySelector('label[for="' + id + '"]') || field.parentNode;
+            if (label) {
+                label.parentNode.insertBefore( message, label.nextSibling );
+            }
+        }
+
+        // Otherwise, insert it after the field
+        if (!label) {
+            field.parentNode.insertBefore( message, field.nextSibling );
+        }
+    }
+
+    ...
+
+};
+When we go to remove the error, we similarly need to check if the field is a radio button that's part of a group, and if so, use the last radio button in that group to get the ID of our error message.
+
+// Remove the error message
+var removeError = function (field) {
+
+    // Remove error class to field
+    field.classList.remove('error');
+
+    // If the field is a radio button and part of a group, remove error from all and get the last item in the group
+    if (field.type === 'radio' && field.name) {
+        var group = document.getElementsByName(field.name);
+        if (group.length > 0) {
+            for (var i = 0; i < group.length; i++) {
+                // Only check fields in current form
+                if (group[i].form !== field.form) continue;
+                group[i].classList.remove('error');
+            }
+            field = group[group.length - 1];
+        }
+    }
+
+    ...
+
+};
+
+#Checking all fields on submit
+When a visitor submits our form, we should first validate every field in the form and display error messages on any invalid fields. We should also bring the first field with an error into focus so that the visitor can immediately take action to correct it.
+
+We'll do this by adding a listener for the submit event.
+
+// Check all fields on submit
+document.addEventListener('submit', function (event) {
+    // Validate all fields...
+}, false);
+If the form has the .validate class, we'll get every field, loop through each one, and check for errors. We'll store the first invalid field we find to a variable and bring it into focus when we're done. If no errors are found, the form can submit normally.
+
+// Check all fields on submit
+document.addEventListener('submit', function (event) {
+
+    // Only run on forms flagged for validation
+    if (!event.target.classList.contains('validate')) return;
+
+    // Get all of the form elements
+    var fields = event.target.elements;
+
+    // Validate each field
+    // Store the first field with an error to a variable so we can bring it into focus later
+    var error, hasErrors;
+    for (var i = 0; i < fields.length; i++) {
+        error = hasError(fields[i]);
+        if (error) {
+            showError(fields[i], error);
+            if (!hasErrors) {
+                hasErrors = fields[i];
+            }
+        }
+    }
+
+    // If there are errrors, don't submit form and focus on first element with error
+    if (hasErrors) {
+        event.preventDefault();
+        hasErrors.focus();
+    }
+
+    // Otherwise, let the form submit normally
+    // You could also bolt in an Ajax form submit process here
+
+}, false);
+
+#Tying it all together
+Our finished script weight just 6kb (2.7kb minified). You can download a plugin version on GitHub.
+
+It works in all modern browsers and provides support IE support back to IE10. But, there are some browser gotchas…
+
+Because we can't have nice things, not every browser supports every Validity State property.
+Internet Explorer is, of course, the main violator, though Edge does lack support for tooLong even though IE10+ supports it. Go figure.
+Here's the good news: with a lightweight polyfill (5kb, 2.7kb minified) we can extend our browser support all the way back to IE9, and add missing properties to partially supporting browsers, without having to touch any of our core code.
+
+There is one exception to the IE9 support: radio buttons. IE9 doesn't support CSS3 selectors (like [name="' + field.name + '"]). We use that to make sure at least one radio button has been selected within a group. IE9 will always return an error.
+
+I'll show you how to create this polyfill in the next article.
+
+Article Series:
+Constraint Validation in HTML
+The Constraint Validation API in JavaScript (You are here!)
+A Validity State API Polyfill
+Validating the MailChimp Subscribe Form
